@@ -189,4 +189,11 @@ class DatabaseManager {
                 "VALUES (?, ?, ?, ?)";
         insertEntry(sql, new Object[]{initializerId, type, kind, packageInfo});
     }
+
+    public static void insertServiceReadOnlyMetaData(int packageId, String serviceType, String metadataKey,
+                                                     String displayName, String description) {
+        String sql = "INSERT INTO ServiceReadOnlyMetaData (package_id, service_type, metadata_key, display_name, " +
+                "description) VALUES (?, ?, ?, ?, ?)";
+        insertEntry(sql, new Object[]{packageId, serviceType, metadataKey, displayName, description});
+    }
 }

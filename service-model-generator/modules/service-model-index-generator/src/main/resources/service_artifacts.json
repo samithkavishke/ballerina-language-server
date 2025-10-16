@@ -57,7 +57,8 @@
         }
       },
       "initForm": {
-      }
+      },
+      "readOnlyMetaData": ["basePath", "port", "host", "config"]
     },
     {
       "name": "graphql",
@@ -864,7 +865,8 @@
           "sourceKind": "LISTENER_PARAM_REQUIRED",
           "selections": []
         }
-      }
+      },
+      "readOnlyMetaData": ["queueName", "autoAck"]
     },
     {
       "name": "kafka",

@@ -78,7 +78,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -123,10 +125,16 @@ class ServiceIndexGenerator {
                                        PackageMetadataInfo packageMetadataInfo) {
         Package resolvedPackage;
         try {
-            resolvedPackage = Objects.requireNonNull(PackageUtil.getModulePackage(buildProject, org,
-                    packageMetadataInfo.name(), packageMetadataInfo.version())).orElseThrow();
+            Optional<Package> packageOpt = PackageUtil.getModulePackage(buildProject, org,
+
+                    packageMetadataInfo.name(), packageMetadataInfo.version());
+            if (packageOpt.isEmpty()) {
+                LOGGER.warning("Package not found: " + org + "/" + packageMetadataInfo.name() + ":" + packageMetadataInfo.version());
+                return;
+            }
+            resolvedPackage = packageOpt.get();
         } catch (Throwable e) {
-            LOGGER.severe("Error resolving package: " + packageMetadataInfo.name() + e.getMessage());
+            LOGGER.severe("Error resolving package: " + packageMetadataInfo.name() + " - " + e.getMessage());
             return;
         }
         PackageDescriptor descriptor = resolvedPackage.descriptor();
@@ -212,6 +220,18 @@ class ServiceIndexGenerator {
 
                 DatabaseManager.insertAnnotation(packageId, annotationName, attachPoints, annotation.displayName(),
                         annotation.description(), annotation.typeConstraint(), pkgInfo);
+            }
+        }
+
+        // readonly metadata
+        if (Objects.nonNull(packageMetadataInfo.readOnlyMetaData())) {
+            for (Map.Entry<String, List<String>> entry : packageMetadataInfo.readOnlyMetaData().entrySet()) {
+                String serviceType = entry.getKey();
+                List<String> metadataKeys = entry.getValue();
+                for (String metadataKey : metadataKeys) {
+                    DatabaseManager.insertServiceReadOnlyMetaData(packageId, serviceType, metadataKey,
+                            metadataKey, "");
+                }
             }
         }
 
@@ -639,7 +659,8 @@ class ServiceIndexGenerator {
     private record PackageMetadataInfo(String name, String version, List<String> serviceTypeSkipList,
                                        ServiceDeclaration serviceDeclaration,
                                        Map<String, ServiceType> serviceTypes, Map<String, Annotation> annotations,
-                                       Map<String, ServiceInitializerProperty> initForm) {
+                                       Map<String, ServiceInitializerProperty> initForm,
+                                       Map<String, List<String>> readOnlyMetaData) {
     }
 
     record ServiceDeclaration(int optionalTypeDescriptor, String displayName, String description,
@@ -718,5 +739,51 @@ class ServiceIndexGenerator {
             default -> paths.add("");
         }
         return String.join("/", paths);
+    }
+
+    /**
+     * Attempts to find the Ballerina home directory by checking common installation paths.
+     *
+     * @return The path to Ballerina home directory, or null if not found
+     */
+    private static String findBallerinaHome() {
+        // Common Ballerina installation paths
+        String[] possiblePaths = {
+            System.getenv("BALLERINA_HOME"),
+            "/usr/local/ballerina",
+            "/opt/ballerina",
+            System.getProperty("user.home") + "/.ballerina",
+            System.getProperty("user.home") + "/ballerina"
+        };
+
+        for (String path : possiblePaths) {
+            if (path != null && Files.exists(Paths.get(path))) {
+                Path ballerinaPath = Paths.get(path);
+                // Check if it looks like a valid Ballerina installation
+                if (Files.exists(ballerinaPath.resolve("bin")) ||
+                    Files.exists(ballerinaPath.resolve("lib"))) {
+                    return path;
+                }
+            }
+        }
+
+        // Try to find ballerina in PATH
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv != null) {
+            String[] pathDirs = pathEnv.split(System.getProperty("path.separator"));
+            for (String dir : pathDirs) {
+                Path ballerinaExe = Paths.get(dir, "ballerina");
+                if (Files.exists(ballerinaExe)) {
+                    // Try to get parent directory
+                    Path parent = ballerinaExe.getParent().getParent();
+                    if (parent != null && Files.exists(parent)) {
+                        return parent.toString();
+                    }
+                }
+            }
+        }
+
+        LOGGER.warning("Could not find Ballerina installation automatically");
+        return null;
     }
 }

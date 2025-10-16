@@ -95,6 +95,7 @@ import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtil
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.getServiceDocumentation;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.getStringLiteral;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.getTypeDescriptorProperty;
+import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.getReadonlyMetadata;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.populateRequiredFunctionsForServiceType;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.getServiceTypeIdentifier;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.updateListenerItems;
@@ -287,6 +288,14 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
             properties.put("stringLiteral", getStringLiteral(serviceTemplate));
         }
 
+
+        // Get the service type for metadata retrieval
+        List<String> serviceTypes = ServiceDatabaseManager.getInstance().getServiceTypes(pkg.packageId());
+        String serviceType = serviceTypes.isEmpty() ? null : serviceTypes.getFirst();
+
+        properties.put("readOnlyMetaData", getReadonlyMetadata(serviceTemplate, pkg.org(), pkg.name(), serviceType));
+
+
         List<AnnotationAttachment> annotationAttachments = ServiceDatabaseManager.getInstance()
                 .getAnnotationAttachments(pkg.packageId());
         for (AnnotationAttachment annotationAttachment : annotationAttachments) {
@@ -298,6 +307,7 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
 
         return Optional.of(service);
     }
+
 
     @Override
     public Map<String, List<TextEdit>> addModel(AddModelContext context) throws Exception {

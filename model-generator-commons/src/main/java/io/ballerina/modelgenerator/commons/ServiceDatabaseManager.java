@@ -642,6 +642,37 @@ public class ServiceDatabaseManager {
 
     }
 
+    public List<ReadOnlyMetaData> getReadOnlyMetaData(String orgName, String packageName, String serviceType) {
+        String sql = "SELECT " +
+                "metadata_key, " +
+                "display_name, " +
+                "description " +
+                "FROM ServiceReadOnlyMetaData srmd " +
+                "JOIN Package p ON srmd.package_id = p.package_id " +
+                "WHERE p.name = ? AND p.org = ? AND srmd.service_type = ?";
+        try (Connection conn = DriverManager.getConnection(dbPath);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, packageName);
+            stmt.setString(2, orgName);
+            stmt.setString(3, serviceType);
+
+            ResultSet rs = stmt.executeQuery();
+            List<ReadOnlyMetaData> metaDataList = new ArrayList<>();
+            while (rs.next()) {
+                metaDataList.add(new ReadOnlyMetaData(
+                        rs.getString("metadata_key"),
+                        rs.getString("display_name"),
+                        rs.getString("description")
+                ));
+            }
+            conn.close();
+            return metaDataList;
+        } catch (SQLException e) {
+            Logger.getGlobal().severe("Error executing query: " + e.getMessage());
+            return List.of();
+        }
+    }
+
     // Helper builder class
     private static class ParameterDataBuilder {
 

@@ -47,6 +47,7 @@ import io.ballerina.servicemodelgenerator.extension.model.ServiceMetadata;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -424,6 +425,48 @@ public class ServiceModelUtils {
         return valueBuilder.build();
     }
 
+    public static Value getReadonlyMetadata(ServiceDeclaration template) {
+        return getReadonlyMetadata(template, null, null, null);
+    }
+
+    public static Value getReadonlyMetadata(ServiceDeclaration template, String orgName, String packageName, String serviceType) {
+        Value.ValueBuilder valueBuilder = new Value.ValueBuilder();
+        HashMap<String, String> props = new HashMap<>();
+
+        // Try to get metadata from database if service type and package info is available
+        if (orgName != null && packageName != null && serviceType != null) {
+            List<io.ballerina.modelgenerator.commons.ReadOnlyMetaData> metaDataList =
+                    ServiceDatabaseManager.getInstance().getReadOnlyMetaData(orgName, packageName, serviceType);
+
+            for (io.ballerina.modelgenerator.commons.ReadOnlyMetaData metaData : metaDataList) {
+                String displayName = metaData.displayName() != null && !metaData.displayName().isEmpty()
+                        ? metaData.displayName()
+                        : metaData.metadataKey();
+                props.put(displayName, "");  // Value will be populated at runtime
+            }
+        }
+
+        // Fallback to default values if no metadata found
+        if (props.isEmpty()) {
+            props.put("Base Path", "/");
+            props.put("Public Key", "path/to/publicKey.pem");
+        }
+
+        valueBuilder
+                .setCodedata(new Codedata("READONLY"))
+                .value(props)
+                .setValues(List.of(props))
+                .valueType("SINGLE_SELECT")
+                .setValueTypeConstraint("boolean")
+                .setPlaceholder("false")
+                .optional(false)
+                .setAdvanced(false)
+                .enabled(true)
+                .editable(true);
+
+        return valueBuilder.build();
+    }
+
     public static String getProtocol(String moduleName) {
         String[] split = moduleName.split("\\.");
         return split[split.length - 1];
@@ -490,4 +533,6 @@ public class ServiceModelUtils {
         ModuleID id = module.get().id();
         return new ServiceMetadata(serviceType, serviceTypeIdentifier, id.orgName(), id.packageName(), id.moduleName());
     }
+
+
 }
