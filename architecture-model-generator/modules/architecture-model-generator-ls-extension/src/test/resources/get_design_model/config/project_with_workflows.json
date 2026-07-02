@@ -1,6 +1,6 @@
 {
   "description": "Project with an automation and an http service that both run workflows",
-  "projectPath": "project_10",
+  "projectPath": "project_11",
   "output": {
     "designModel": {
       "automation": {
